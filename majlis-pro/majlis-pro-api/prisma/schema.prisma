@@ -1,0 +1,323 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Management
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  phone             String?  @unique
+  username          String   @unique
+  password          String
+  firstName         String
+  lastName          String
+  bio               String?
+  avatar            String?
+  coverImage        String?
+  location          String?
+  website           String?
+  linkedinUrl       String?
+  membershipType    MembershipType @default(BASIC)
+  verificationBadge BadgeType      @default(NONE)
+  isVerified        Boolean        @default(false)
+  isActive          Boolean        @default(true)
+  followersCount    Int @default(0)
+  followingCount    Int @default(0)
+  postsCount        Int @default(0)
+  posts             Post[]
+  companies         Company[]
+  subscriptions     Subscription[]
+  voiceRoomHosts    VoiceRoom[]
+  dealInterests     DealInterest[]
+  comments          Comment[]
+  postLikes         PostLike[]
+  roomParticipants  RoomParticipant[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@map("users")
+}
+
+// Company Profiles
+model Company {
+  id              String  @id @default(cuid())
+  name            String
+  slug            String  @unique
+  description     String?
+  logo            String?
+  coverImage      String?
+  website         String?
+  industryId      String
+  companySize     CompanySize?
+  foundedYear     Int?
+  headquarters    String?
+  employeeCount   Int?
+  annualRevenue   Decimal?
+  fundingStage    FundingStage?
+  totalFunding    Decimal?
+  lastFundingDate DateTime?
+  isVerified      Boolean @default(false)
+  industry        Industry @relation(fields: [industryId], references: [id])
+  owner           User     @relation(fields: [ownerId], references: [id])
+  ownerId         String
+  posts           Post[]
+  deals           Deal[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@map("companies")
+}
+
+// Industry Rooms
+model Industry {
+  id          String    @id @default(cuid())
+  name        String
+  nameAr      String
+  slug        String    @unique
+  description String?
+  icon        String?
+  color       String?
+  isActive    Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  companies   Company[]
+  posts       Post[]
+  voiceRooms  VoiceRoom[]
+  deals       Deal[]
+  createdAt DateTime @default(now())
+  @@map("industries")
+}
+
+// Posts & Content
+model Post {
+  id            String     @id @default(cuid())
+  content       String
+  contentAr     String?
+  authorId      String
+  companyId     String?
+  industryId    String?
+  postType      PostType   @default(TEXT)
+  mediaUrls     String[]
+  likesCount    Int @default(0)
+  commentsCount Int @default(0)
+  sharesCount   Int @default(0)
+  viewsCount    Int @default(0)
+  isPinned      Boolean @default(false)
+  isFeatured    Boolean @default(false)
+  visibility    Visibility @default(PUBLIC)
+  status        PostStatus @default(PUBLISHED)
+  author        User      @relation(fields: [authorId], references: [id])
+  company       Company?  @relation(fields: [companyId], references: [id])
+  industry      Industry? @relation(fields: [industryId], references: [id])
+  comments      Comment[]
+  likes         PostLike[]
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@map("posts")
+}
+
+// Voice Rooms (Clubhouse-style)
+model VoiceRoom {
+  id            String @id @default(cuid())
+  title         String
+  titleAr       String?
+  description   String?
+  industryId    String
+  hostId        String
+  maxParticipants Int @default(100)
+  isRecorded      Boolean @default(false)
+  isPrivate       Boolean @default(false)
+  status          RoomStatus @default(SCHEDULED)
+  scheduledAt     DateTime
+  startedAt       DateTime?
+  endedAt         DateTime?
+  industry        Industry @relation(fields: [industryId], references: [id])
+  host            User     @relation(fields: [hostId], references: [id])
+  participants    RoomParticipant[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@map("voice_rooms")
+}
+
+// Investment Deals & Opportunities
+model Deal {
+  id            String @id @default(cuid())
+  title         String
+  titleAr       String?
+  description   String
+  dealType      DealType
+  amountMin     Decimal?
+  amountMax     Decimal?
+  currency      String @default("SAR")
+  equityPercent Decimal?
+  companyId     String
+  industryId    String
+  location      String?
+  requirements  String?
+  documents     String[]
+  status        DealStatus @default(OPEN)
+  isFeatured    Boolean @default(false)
+  deadline      DateTime?
+  company       Company @relation(fields: [companyId], references: [id])
+  industry      Industry @relation(fields: [industryId], references: [id])
+  interests     DealInterest[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@map("deals")
+}
+
+// Subscription Management
+model Subscription {
+  id                String @id @default(cuid())
+  userId            String
+  planType          MembershipType
+  amount            Decimal
+  currency          String @default("SAR")
+  billingCycle      BillingCycle
+  startDate         DateTime
+  endDate           DateTime
+  nextBillingDate   DateTime?
+  status            SubscriptionStatus @default(ACTIVE)
+  stripeSubscriptionId String?
+  payTabsSubscriptionId String?
+  user              User @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@map("subscriptions")
+}
+
+enum MembershipType {
+  BASIC
+  PRO
+  ELITE
+  BLACK
+}
+
+enum BadgeType {
+  NONE
+  BLUE
+  GOLD
+  BLACK
+}
+
+enum PostType {
+  TEXT
+  IMAGE
+  VIDEO
+  POLL
+  DEAL
+  EVENT
+}
+
+enum DealType {
+  INVESTMENT
+  PARTNERSHIP
+  ACQUISITION
+  MERGER
+  SALE
+}
+
+enum RoomStatus {
+  SCHEDULED
+  LIVE
+  ENDED
+  CANCELLED
+}
+
+enum CompanySize {
+  MICRO
+  SMALL
+  MEDIUM
+  LARGE
+  ENTERPRISE
+}
+
+enum FundingStage {
+  BOOTSTRAP
+  SEED
+  SERIES_A
+  SERIES_B
+  SERIES_C
+  IPO
+}
+
+enum Visibility {
+  PUBLIC
+  PRIVATE
+  CONNECTIONS
+}
+
+enum PostStatus {
+  PUBLISHED
+  DRAFT
+  ARCHIVED
+  DELETED
+}
+
+enum DealStatus {
+  OPEN
+  CLOSED
+  UNDER_REVIEW
+  CANCELLED
+}
+
+enum BillingCycle {
+  MONTHLY
+  ANNUAL
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PAST_DUE
+}
+
+model DealInterest {
+  id        String   @id @default(cuid())
+  userId    String
+  dealId    String
+  status    String   // e.g. PENDING, APPROVED, REJECTED
+  user      User     @relation(fields: [userId], references: [id])
+  deal      Deal     @relation(fields: [dealId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  postId    String
+  authorId  String
+  post      Post     @relation(fields: [postId], references: [id])
+  author    User     @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  post      Post     @relation(fields: [postId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model RoomParticipant {
+  id           String   @id @default(cuid())
+  userId       String
+  voiceRoomId  String
+  role         String   // e.g. SPEAKER, LISTENER, MODERATOR
+  joinedAt     DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id])
+  voiceRoom    VoiceRoom @relation(fields: [voiceRoomId], references: [id])
+}
+
